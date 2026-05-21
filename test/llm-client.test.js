@@ -205,6 +205,42 @@ test("does not send chat_template_kwargs when not configured", async () => {
   }
 });
 
+test("returns error when LLM fails after retries", async () => {
+  const previousKey = process.env.TEST_LLM_API_KEY;
+  const previousFetch = globalThis.fetch;
+  const previousSetTimeout = globalThis.setTimeout;
+  process.env.TEST_LLM_API_KEY = "secret";
+
+  globalThis.fetch = async () => {
+    return createJsonResponse(500, { error: "internal error" });
+  };
+
+  globalThis.setTimeout = (fn) => {
+    fn();
+    return 0;
+  };
+
+  try {
+    const client = createClient(createKv(), {
+      apiKeyEnv: "TEST_LLM_API_KEY",
+      retries: 1,
+    });
+
+    const result = await client.complete({ prompt: "Test" });
+
+    assert.equal(result.text, null);
+    assert.match(result.error, /LLM request failed/);
+  } finally {
+    globalThis.fetch = previousFetch;
+    globalThis.setTimeout = previousSetTimeout;
+    if (previousKey === undefined) {
+      delete process.env.TEST_LLM_API_KEY;
+    } else {
+      process.env.TEST_LLM_API_KEY = previousKey;
+    }
+  }
+});
+
 test("retries transient failures and eventually returns the response text", async () => {
   const previousKey = process.env.TEST_LLM_API_KEY;
   const previousFetch = globalThis.fetch;

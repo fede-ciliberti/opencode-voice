@@ -162,7 +162,9 @@ then `s`.
 3. LLM normalizes the transcription: fixes punctuation, removes filler words,
    corrects software engineering homophones ("Jason" to "JSON", "bullion" to
    "boolean", etc.)
-4. Cleaned text is appended to the OpenCode prompt
+4. Cleaned text is appended to the OpenCode prompt. If normalization fails
+   (e.g. LLM endpoint unreachable), the raw transcription is used as a fallback
+   so you never lose your input
 
 ### TTS pipeline
 
