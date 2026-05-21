@@ -3,14 +3,6 @@ import test from "node:test";
 
 import { createClient } from "../lib/llm-client.js";
 
-function createKv(entries = {}) {
-  return {
-    get(key) {
-      return entries[key];
-    },
-  };
-}
-
 function createJsonResponse(status, data) {
   return {
     ok: status >= 200 && status < 300,
@@ -21,25 +13,24 @@ function createJsonResponse(status, data) {
   };
 }
 
-test("returns an error when the configured API key is missing", async () => {
-  const previousKey = process.env.TEST_LLM_API_KEY;
-  delete process.env.TEST_LLM_API_KEY;
+test("returns error when endpoint is not configured", async () => {
+  const client = createClient({ model: "test-model" });
+  const result = await client.complete({ prompt: "Test" });
 
-  try {
-    const client = createClient(createKv(), { apiKeyEnv: "TEST_LLM_API_KEY" });
-    const result = await client.complete({ prompt: "Normalize this" });
+  assert.deepEqual(result, {
+    text: null,
+    error: "LLM endpoint not configured",
+  });
+});
 
-    assert.deepEqual(result, {
-      text: null,
-      error: "TEST_LLM_API_KEY not set",
-    });
-  } finally {
-    if (previousKey === undefined) {
-      delete process.env.TEST_LLM_API_KEY;
-    } else {
-      process.env.TEST_LLM_API_KEY = previousKey;
-    }
-  }
+test("returns error when model is not configured", async () => {
+  const client = createClient({ endpoint: "https://example.test/v1" });
+  const result = await client.complete({ prompt: "Test" });
+
+  assert.deepEqual(result, {
+    text: null,
+    error: "LLM model not configured",
+  });
 });
 
 test("sends chat completions requests with reasoning_effort when configured", async () => {
@@ -56,7 +47,7 @@ test("sends chat completions requests with reasoning_effort when configured", as
   };
 
   try {
-    const client = createClient(createKv(), {
+    const client = createClient({
       endpoint: "https://example.test/v1/",
       model: "gpt-test",
       apiKeyEnv: "TEST_LLM_API_KEY",
@@ -93,7 +84,7 @@ test("sends chat completions requests with reasoning_effort when configured", as
   }
 });
 
-test("sends chat_template_kwargs when configured via plugin options", async () => {
+test("sends chat_template_kwargs when configured", async () => {
   const previousKey = process.env.TEST_LLM_API_KEY;
   const previousFetch = globalThis.fetch;
   const requests = [];
@@ -107,7 +98,7 @@ test("sends chat_template_kwargs when configured via plugin options", async () =
   };
 
   try {
-    const client = createClient(createKv(), {
+    const client = createClient({
       endpoint: "https://example.test/v1",
       model: "qwen-test",
       apiKeyEnv: "TEST_LLM_API_KEY",
@@ -120,46 +111,6 @@ test("sends chat_template_kwargs when configured via plugin options", async () =
     const body = JSON.parse(requests[0].options.body);
     assert.deepEqual(body.chat_template_kwargs, { enable_thinking: false });
     assert.equal(body.reasoning_effort, undefined);
-  } finally {
-    globalThis.fetch = previousFetch;
-    if (previousKey === undefined) {
-      delete process.env.TEST_LLM_API_KEY;
-    } else {
-      process.env.TEST_LLM_API_KEY = previousKey;
-    }
-  }
-});
-
-test("sends chat_template_kwargs when configured via kv with a JSON string", async () => {
-  const previousKey = process.env.TEST_LLM_API_KEY;
-  const previousFetch = globalThis.fetch;
-  const requests = [];
-  process.env.TEST_LLM_API_KEY = "secret";
-
-  globalThis.fetch = async (url, options) => {
-    requests.push({ url, options });
-    return createJsonResponse(200, {
-      choices: [{ message: { content: "text" } }],
-    });
-  };
-
-  try {
-    const client = createClient(
-      createKv({
-        "llm.chatTemplateKwargs": '{"enable_thinking": false}',
-      }),
-      {
-        endpoint: "https://example.test/v1",
-        model: "qwen-test",
-        apiKeyEnv: "TEST_LLM_API_KEY",
-        retries: 0,
-      },
-    );
-
-    const result = await client.complete({ prompt: "Test" });
-    assert.equal(result.text, "text");
-    const body = JSON.parse(requests[0].options.body);
-    assert.deepEqual(body.chat_template_kwargs, { enable_thinking: false });
   } finally {
     globalThis.fetch = previousFetch;
     if (previousKey === undefined) {
@@ -184,7 +135,7 @@ test("does not send chat_template_kwargs when not configured", async () => {
   };
 
   try {
-    const client = createClient(createKv(), {
+    const client = createClient({
       endpoint: "https://example.test/v1",
       model: "test-model",
       apiKeyEnv: "TEST_LLM_API_KEY",
@@ -205,6 +156,32 @@ test("does not send chat_template_kwargs when not configured", async () => {
   }
 });
 
+test("sends requests without Authorization header when no apiKeyEnv", async () => {
+  const previousFetch = globalThis.fetch;
+  const requests = [];
+
+  globalThis.fetch = async (url, options) => {
+    requests.push({ url, options });
+    return createJsonResponse(200, {
+      choices: [{ message: { content: "text" } }],
+    });
+  };
+
+  try {
+    const client = createClient({
+      endpoint: "https://example.test/v1",
+      model: "test-model",
+      retries: 0,
+    });
+
+    const result = await client.complete({ prompt: "Test" });
+    assert.equal(result.text, "text");
+    assert.equal(requests[0].options.headers.Authorization, undefined);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
 test("returns error when LLM fails after retries", async () => {
   const previousKey = process.env.TEST_LLM_API_KEY;
   const previousFetch = globalThis.fetch;
@@ -221,7 +198,9 @@ test("returns error when LLM fails after retries", async () => {
   };
 
   try {
-    const client = createClient(createKv(), {
+    const client = createClient({
+      endpoint: "https://example.test/v1",
+      model: "test-model",
       apiKeyEnv: "TEST_LLM_API_KEY",
       retries: 1,
     });
@@ -264,7 +243,9 @@ test("retries transient failures and eventually returns the response text", asyn
   };
 
   try {
-    const client = createClient(createKv(), {
+    const client = createClient({
+      endpoint: "https://example.test/v1",
+      model: "test-model",
       apiKeyEnv: "TEST_LLM_API_KEY",
       retries: 2,
     });

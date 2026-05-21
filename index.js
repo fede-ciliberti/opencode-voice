@@ -45,7 +45,7 @@ export default {
   id: "opencode-voice",
   tui: async (api, options) => {
     const { kv } = api;
-    const { complete } = createClient(kv, options);
+    const { complete } = createClient(options);
 
     const prompts = {
       stt: loadPromptFile(options?.sttPrompt),

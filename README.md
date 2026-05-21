@@ -14,12 +14,22 @@ code-heavy responses, etc.).
 
 ## Install
 
-Add to your `tui.json` (create at `~/.config/opencode/tui.json` if it doesn't exist):
+Add to your `tui.json` (create at `~/.config/opencode/tui.json` if it doesn't exist).
+You must configure at least `endpoint` and `model`:
 
 ```json
 {
   "$schema": "https://opencode.ai/tui.json",
-  "plugin": ["@renjfk/opencode-voice"]
+  "plugin": [
+    [
+      "@renjfk/opencode-voice",
+      {
+        "endpoint": "https://api.anthropic.com/v1",
+        "model": "claude-haiku-4-5",
+        "apiKeyEnv": "ANTHROPIC_API_KEY"
+      }
+    ]
+  ]
 }
 ```
 
@@ -70,10 +80,9 @@ speech-to-text it cleans up whisper output (punctuation, filler words, software
 engineering homophones). For text-to-speech it converts markdown into natural
 spoken text.
 
-By default uses Anthropic's OpenAI compatibility layer with `claude-haiku-4-5`.
-Requires `ANTHROPIC_API_KEY` in your environment.
-
-Set defaults in `tui.json` via plugin options:
+Configure your endpoint in `tui.json` via plugin options. Any OpenAI-compatible
+endpoint works (Anthropic, OpenAI, Ollama, vLLM, LM Studio, etc.). The `apiKeyEnv`
+option is optional - omit it for unauthenticated endpoints like Ollama.
 
 ```json
 {
@@ -83,25 +92,36 @@ Set defaults in `tui.json` via plugin options:
       {
         "endpoint": "https://api.anthropic.com/v1",
         "model": "claude-haiku-4-5",
-        "apiKeyEnv": "ANTHROPIC_API_KEY",
-        "maxTokens": 2048,
-        "reasoningEffort": "low",
-        "retries": 2
+        "apiKeyEnv": "ANTHROPIC_API_KEY"
       }
     ]
   ]
 }
 ```
 
-Any OpenAI-compatible endpoint works (Ollama, vLLM, LM Studio, etc.).
+For unauthenticated local endpoints (e.g. Ollama):
 
-- `endpoint` - OpenAI-compatible base URL
-- `model` - model name sent to `/chat/completions`
-- `apiKeyEnv` - environment variable containing the API key
-- `maxTokens` - maximum completion tokens for normalization calls
-- `reasoningEffort` - optional reasoning level for models that support it
-- `chatTemplateKwargs` - extra keyword arguments passed to the model's chat template (e.g. `{"enable_thinking": false}` for Qwen models to disable chain-of-thought)
-- `retries` - number of retry attempts for transient LLM failures
+```json
+{
+  "plugin": [
+    [
+      "@renjfk/opencode-voice",
+      {
+        "endpoint": "http://localhost:11434/v1",
+        "model": "llama3.2"
+      }
+    ]
+  ]
+}
+```
+
+- `endpoint` _(required)_ - OpenAI-compatible base URL
+- `model` _(required)_ - model name sent to `/chat/completions`
+- `apiKeyEnv` _(optional)_ - environment variable containing the API key
+- `maxTokens` _(optional)_ - maximum completion tokens for normalization calls
+- `reasoningEffort` _(optional)_ - reasoning level for models that support it
+- `chatTemplateKwargs` _(optional)_ - extra keyword arguments passed to the model's chat template (e.g. `{"enable_thinking": false}` for Qwen models to disable chain-of-thought)
+- `retries` _(optional)_ - number of retry attempts for transient LLM failures
 
 ### STT API transcription (optional)
 
@@ -124,9 +144,9 @@ plugin on a machine without whisper-cpp installed.
 }
 ```
 
-- `sttEndpoint` - OpenAI-compatible base URL with `/audio/transcriptions` support
-- `sttModel` - whisper model name to pass to the API (default: `whisper-large-v3-turbo`). Can be changed at runtime via `/stt-model`, which fetches available whisper models from the endpoint's `/models` listing
-- `sttApiKeyEnv` - environment variable containing the API key (omit if no auth needed)
+- `sttEndpoint` _(optional)_ - OpenAI-compatible base URL with `/audio/transcriptions` support
+- `sttModel` _(optional)_ - whisper model name to pass to the API (default: `whisper-large-v3-turbo`). Can be changed at runtime via `/stt-model`, which fetches available whisper models from the endpoint's `/models` listing
+- `sttApiKeyEnv` _(optional)_ - environment variable containing the API key
 
 ### Custom prompts
 
@@ -149,9 +169,9 @@ up or how responses are spoken.
 }
 ```
 
-- `sttPrompt` - system prompt for cleaning up whisper transcriptions
-- `ttsAutoPrompt` - system prompt for auto-speaking assistant responses
-- `ttsManualPrompt` - system prompt for manually reading responses aloud
+- `sttPrompt` _(optional)_ - system prompt for cleaning up whisper transcriptions
+- `ttsAutoPrompt` _(optional)_ - system prompt for auto-speaking assistant responses
+- `ttsManualPrompt` _(optional)_ - system prompt for manually reading responses aloud
 
 If a path is not set, the built-in default prompt is used.
 
