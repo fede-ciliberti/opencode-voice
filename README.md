@@ -103,6 +103,31 @@ Any OpenAI-compatible endpoint works (Ollama, vLLM, LM Studio, etc.).
 - `chatTemplateKwargs` - extra keyword arguments passed to the model's chat template (e.g. `{"enable_thinking": false}` for Qwen models to disable chain-of-thought)
 - `retries` - number of retry attempts for transient LLM failures
 
+### STT API transcription (optional)
+
+Instead of local `whisper-cli`, you can use an OpenAI-compatible speech-to-text
+API (e.g. serving a Whisper model). This is useful when you want to run the
+plugin on a machine without whisper-cpp installed.
+
+```json
+{
+  "plugin": [
+    [
+      "@renjfk/opencode-voice",
+      {
+        "sttEndpoint": "http://127.0.0.1:8000/v1",
+        "sttModel": "whisper-large-v3-turbo",
+        "sttApiKeyEnv": "MY_STT_API_KEY"
+      }
+    ]
+  ]
+}
+```
+
+- `sttEndpoint` - OpenAI-compatible base URL with `/audio/transcriptions` support
+- `sttModel` - whisper model name to pass to the API (default: `whisper-large-v3-turbo`). Can be changed at runtime via `/stt-model`, which fetches available whisper models from the endpoint's `/models` listing
+- `sttApiKeyEnv` - environment variable containing the API key (omit if no auth needed)
+
 ### Custom prompts
 
 The LLM system prompts used for normalization can be fully replaced by pointing
@@ -158,7 +183,8 @@ then `s`.
 ### STT pipeline
 
 1. `sox` records audio from your microphone
-2. `whisper-cli` transcribes locally using a ggml model
+2. `whisper-cli` transcribes locally using a ggml model, or an OpenAI-compatible
+   API endpoint if `sttEndpoint` is configured
 3. LLM normalizes the transcription: fixes punctuation, removes filler words,
    corrects software engineering homophones ("Jason" to "JSON", "bullion" to
    "boolean", etc.)

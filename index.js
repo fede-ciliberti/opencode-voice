@@ -53,7 +53,7 @@ export default {
       ttsManual: loadPromptFile(options?.ttsManualPrompt),
     };
 
-    const sttCommands = registerSTT(api, kv, complete, prompts);
+    const sttCommands = registerSTT(api, kv, complete, prompts, options);
     const ttsCommands = registerTTS(api, kv, complete, prompts);
 
     api.command.register(() => [...sttCommands, ...ttsCommands]);
