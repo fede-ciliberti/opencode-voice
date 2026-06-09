@@ -58,28 +58,15 @@ export default {
     const ttsCommands = registerTTS(api, kv, complete, prompts);
 
     api.command.register(() => [...sttCommands, ...ttsCommands]);
-
-    pluginApi = api;
-    pluginKv = kv;
-    pluginComplete = complete;
   },
 
-  "chat.message": async (input, output) => {
-    const { sessionID, model } = input;
-    const { message, parts } = output;
-
-    if (!parts || !Array.isArray(parts) || !pluginKv) return;
-
-    const modelID = model?.modelID || null;
+  "chat.message": async ({ sessionID }, { message, parts }) => {
+    if (!parts || !Array.isArray(parts)) return;
 
     for (const part of parts) {
       if (part.type === "text" && part.text) {
-        part.text = await interceptAndInjectAudios(sessionID, part.text, parts, modelID, pluginKv, pluginComplete);
+        part.text = interceptAndInjectAudios(sessionID, part.text, parts);
       }
     }
   },
 };
-
-let pluginApi = null;
-let pluginKv = null;
-let pluginComplete = null;
