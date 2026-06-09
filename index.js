@@ -69,4 +69,32 @@ export default {
       }
     }
   },
+
+  "chat.params": async ({ sessionID, model }, _output) => {
+    // Cache the active hot model from the session so F5 recording can use it.
+    // client.config.get() returns the default config model, not the session-selected one.
+    // This hook fires on every send with the actual model being used.
+    try {
+      const fs = await import("node:fs");
+      const os = await import("node:os");
+      const path = await import("node:path");
+
+      const modelId = model?.id || model?.modelID || (typeof model === "string" ? model : null);
+      if (!modelId) return;
+
+      const cacheDir = path.join(os.homedir(), ".local", "share", "opencode-voice", "cache");
+      fs.mkdirSync(cacheDir, { recursive: true });
+      fs.writeFileSync(path.join(cacheDir, "active-model.json"), JSON.stringify({ modelId, sessionID, ts: new Date().toISOString() }));
+
+      const logDir = path.join(os.homedir(), ".local", "share", "opencode-voice", "logs");
+      const logFile = path.join(logDir, "stt.log");
+      fs.mkdirSync(logDir, { recursive: true });
+      fs.appendFileSync(logFile, JSON.stringify({
+        ts: new Date().toISOString(),
+        event: "chat_params_model_cached",
+        sessionID,
+        modelId,
+      }) + "\n");
+    } catch {}
+  },
 };
