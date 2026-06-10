@@ -9,14 +9,14 @@ Single TUI plugin exported from `index.js` with logic split into `lib/`.
 
 ### Module layout
 
-| File | Purpose |
-|---|---|
-| `index.js` | Entry point, wires STT + TTS commands |
-| `lib/stt.js` | Recording, whisper transcription, LLM normalization, pipeline orchestration |
-| `lib/passthrough.js` | Audio passthrough: model detection + send WAV as FilePartInput |
-| `lib/tts.js` | Piper TTS playback |
-| `lib/llm-client.js` | OpenAI-compatible client for text normalization |
-| `lib/session.js` | Session context helpers |
+| File                 | Purpose                                                                     |
+| -------------------- | --------------------------------------------------------------------------- |
+| `index.js`           | Entry point, wires STT + TTS commands                                       |
+| `lib/stt.js`         | Recording, whisper transcription, LLM normalization, pipeline orchestration |
+| `lib/passthrough.js` | Audio passthrough: model detection + send WAV as FilePartInput              |
+| `lib/tts.js`         | Piper TTS playback                                                          |
+| `lib/llm-client.js`  | OpenAI-compatible client for text normalization                             |
+| `lib/session.js`     | Session context helpers                                                     |
 
 ## Key invariants
 

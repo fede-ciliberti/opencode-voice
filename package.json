@@ -30,6 +30,9 @@
     },
     "./tui": {
       "import": "./index.js"
+    },
+    "./server": {
+      "import": "./server-plugin.js"
     }
   },
   "scripts": {

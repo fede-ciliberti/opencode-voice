@@ -31,7 +31,6 @@ import path from "node:path";
 import { registerSTT } from "./lib/stt.js";
 import { registerTTS } from "./lib/tts.js";
 import { createClient } from "./lib/llm-client.js";
-import { interceptAndInjectAudios } from "./lib/passthrough.js";
 
 const LOGS_DIR = path.join(os.homedir(), ".local", "share", "opencode-voice", "logs");
 const LOG_FILE = path.join(LOGS_DIR, "stt.log");
@@ -73,31 +72,8 @@ export default {
 
     api.command.register(() => [...sttCommands, ...ttsCommands]);
 
-    hookLog("plugin_commands_registered", { commandCount: sttCommands.length + ttsCommands.length });
-  },
-
-  "chat.message": async ({ sessionID }, { message, parts }) => {
-    hookLog("hook_chat_message_called", {
-      sessionID,
-      hasMessage: !!message,
-      partsCount: parts?.length || 0,
-      partsTypes: parts?.map(p => p.type) || [],
+    hookLog("plugin_commands_registered", {
+      commandCount: sttCommands.length + ttsCommands.length,
     });
-
-    if (!parts || !Array.isArray(parts)) {
-      hookLog("hook_chat_message_no_parts");
-      return;
-    }
-
-    for (const part of parts) {
-      if (part.type === "text" && part.text) {
-        hookLog("hook_processing_text_part", { textLength: part.text.length, textPreview: part.text.substring(0, 100) });
-        const originalText = part.text;
-        part.text = interceptAndInjectAudios(sessionID, part.text, parts);
-        if (originalText !== part.text) {
-          hookLog("hook_text_modified", { originalLength: originalText.length, newLength: part.text.length });
-        }
-      }
-    }
   },
 };
