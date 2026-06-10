@@ -114,11 +114,13 @@ export default {
                       });
                     }
                     if (j < segments.length - 1 && !injected) {
+                      // Extraer solo el base64 puro (sin el prefix "data:audio/wav;base64,")
+                      const rawBase64 = base64.includes(",") ? base64.split(",")[1] : base64;
                       replacement.push({
                         id: generatePartId(),
                         type: "file",
                         mime: "audio/wav",
-                        url: `data:audio/wav;base64,${base64}`,
+                        data: rawBase64,
                         filename: file,
                         messageID: messageID || part.messageID,
                       });
@@ -133,11 +135,12 @@ export default {
               }
 
               if (!injected) {
+                const rawBase64 = base64.includes(",") ? base64.split(",")[1] : base64;
                 parts.push({
                   id: generatePartId(),
                   type: "file",
                   mime: "audio/wav",
-                  url: `data:audio/wav;base64,${base64}`,
+                  data: rawBase64,
                   filename: file,
                   messageID: messageID || parts[0]?.messageID,
                 });
