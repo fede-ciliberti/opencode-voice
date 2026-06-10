@@ -8,6 +8,11 @@ const LOG_FILE = path.join(LOGS_DIR, "server.log");
 const TMP_DIR = "/tmp";
 const FILE_PATTERN = /^opencode-audio-(.+)-(\d+)\.wav$/;
 
+let partIdCounter = 0;
+function generatePartId() {
+  return `part_audio_${Date.now()}_${++partIdCounter}`;
+}
+
 function log(event, data = {}) {
   try {
     fs.mkdirSync(LOGS_DIR, { recursive: true });
@@ -27,6 +32,14 @@ export default {
           sessionID,
           messageID,
           partsCount: parts?.length || 0,
+          partsStructure: parts?.map((p, i) => ({
+            index: i,
+            type: p.type,
+            hasId: !!p.id,
+            textLength: p.text?.length || 0,
+            mime: p.mime || null,
+            filename: p.filename || null,
+          })),
         });
 
         if (!parts || !Array.isArray(parts)) {
@@ -94,6 +107,7 @@ export default {
                   for (let j = 0; j < segments.length; j++) {
                     if (segments[j]) {
                       replacement.push({
+                        id: generatePartId(),
                         type: "text",
                         text: segments[j],
                         messageID: messageID || part.messageID,
@@ -101,6 +115,7 @@ export default {
                     }
                     if (j < segments.length - 1 && !injected) {
                       replacement.push({
+                        id: generatePartId(),
                         type: "file",
                         mime: "audio/wav",
                         url: `data:audio/wav;base64,${base64}`,
@@ -120,6 +135,7 @@ export default {
               if (!injected) {
                 // Etiqueta no encontrada en texto → insertar al final
                 parts.push({
+                  id: generatePartId(),
                   type: "file",
                   mime: "audio/wav",
                   url: `data:audio/wav;base64,${base64}`,
@@ -147,7 +163,17 @@ export default {
           }
         }
 
-        log("hook_completed", { finalPartsCount: parts.length });
+        log("hook_completed", { 
+          finalPartsCount: parts.length,
+          finalPartsStructure: parts.map((p, i) => ({
+            index: i,
+            type: p.type,
+            hasId: !!p.id,
+            textLength: p.text?.length || 0,
+            mime: p.mime || null,
+            filename: p.filename || null,
+          })),
+        });
       },
     };
   },
