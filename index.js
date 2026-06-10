@@ -58,7 +58,9 @@ export default {
   id: "opencode-voice",
   tui: async (api, options) => {
     const { kv } = api;
-    const { complete } = createClient(options);
+    const { complete } = createClient(kv, options);
+
+    hookLog("plugin_tui_initialized", { hasKv: !!kv, hasComplete: !!complete });
 
     const prompts = {
       stt: loadPromptFile(options?.sttPrompt),
@@ -70,6 +72,8 @@ export default {
     const ttsCommands = registerTTS(api, kv, complete, prompts);
 
     api.command.register(() => [...sttCommands, ...ttsCommands]);
+
+    hookLog("plugin_commands_registered", { commandCount: sttCommands.length + ttsCommands.length });
   },
 
   "chat.message": async ({ sessionID }, { message, parts }) => {
