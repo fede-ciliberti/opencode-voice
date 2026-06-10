@@ -114,14 +114,12 @@ export default {
                       });
                     }
                     if (j < segments.length - 1 && !injected) {
-                      const rawBase64 = base64.split(',')[1] || base64;
                       replacement.push({
                         id: generatePartId(),
-                        type: "input_audio",
-                        input_audio: {
-                          data: rawBase64,
-                          format: "wav",
-                        },
+                        type: "file",
+                        mime: "audio/wav",
+                        url: `data:audio/wav;base64,${base64}`,
+                        filename: file,
                         messageID: messageID || part.messageID,
                       });
                       injected = true;
@@ -135,14 +133,12 @@ export default {
               }
 
               if (!injected) {
-                const rawBase64 = base64.split(',')[1] || base64;
                 parts.push({
                   id: generatePartId(),
-                  type: "input_audio",
-                  input_audio: {
-                    data: rawBase64,
-                    format: "wav",
-                  },
+                  type: "file",
+                  mime: "audio/wav",
+                  url: `data:audio/wav;base64,${base64}`,
+                  filename: file,
                   messageID: messageID || parts[0]?.messageID,
                 });
                 log("audio_injected_at_end_fallback", { sessionID, index });
