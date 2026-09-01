@@ -17,20 +17,16 @@ test("returns error when endpoint is not configured", async () => {
   const client = createClient({ model: "test-model" });
   const result = await client.complete({ prompt: "Test" });
 
-  assert.deepEqual(result, {
-    text: null,
-    error: "LLM endpoint not configured",
-  });
+  assert.equal(result.text, null);
+  assert.match(result.error, /All LLM attempts failed/);
 });
 
 test("returns error when model is not configured", async () => {
   const client = createClient({ endpoint: "https://example.test/v1" });
   const result = await client.complete({ prompt: "Test" });
 
-  assert.deepEqual(result, {
-    text: null,
-    error: "LLM model not configured",
-  });
+  assert.equal(result.text, null);
+  assert.match(result.error, /All LLM attempts failed/);
 });
 
 test("sends chat completions requests with reasoning_effort when configured", async () => {
@@ -53,7 +49,6 @@ test("sends chat completions requests with reasoning_effort when configured", as
       apiKeyEnv: "TEST_LLM_API_KEY",
       maxTokens: 321,
       reasoningEffort: "low",
-      retries: 0,
     });
 
     const result = await client.complete({
@@ -182,19 +177,13 @@ test("sends requests without Authorization header when no apiKeyEnv", async () =
   }
 });
 
-test("returns error when LLM fails after retries", async () => {
+test("returns error when all LLM endpoints fail", async () => {
   const previousKey = process.env.TEST_LLM_API_KEY;
   const previousFetch = globalThis.fetch;
-  const previousSetTimeout = globalThis.setTimeout;
   process.env.TEST_LLM_API_KEY = "secret";
 
   globalThis.fetch = async () => {
     return createJsonResponse(500, { error: "internal error" });
-  };
-
-  globalThis.setTimeout = (fn) => {
-    fn();
-    return 0;
   };
 
   try {
@@ -202,16 +191,14 @@ test("returns error when LLM fails after retries", async () => {
       endpoint: "https://example.test/v1",
       model: "test-model",
       apiKeyEnv: "TEST_LLM_API_KEY",
-      retries: 1,
     });
 
     const result = await client.complete({ prompt: "Test" });
 
     assert.equal(result.text, null);
-    assert.match(result.error, /LLM request failed/);
+    assert.match(result.error, /All LLM attempts failed/);
   } finally {
     globalThis.fetch = previousFetch;
-    globalThis.setTimeout = previousSetTimeout;
     if (previousKey === undefined) {
       delete process.env.TEST_LLM_API_KEY;
     } else {
@@ -220,43 +207,42 @@ test("returns error when LLM fails after retries", async () => {
   }
 });
 
-test("retries transient failures and eventually returns the response text", async () => {
+test("tries fallback endpoints when primary fails", async () => {
   const previousKey = process.env.TEST_LLM_API_KEY;
   const previousFetch = globalThis.fetch;
-  const previousSetTimeout = globalThis.setTimeout;
   let attempts = 0;
   process.env.TEST_LLM_API_KEY = "secret";
 
   globalThis.fetch = async () => {
     attempts += 1;
-    if (attempts < 3) {
-      return createJsonResponse(429, { error: { message: "rate limited" } });
+    if (attempts === 1) {
+      return createJsonResponse(500, { error: "primary failed" });
+    }
+    if (attempts === 2) {
+      return createJsonResponse(500, { error: "fallback1 failed" });
     }
     return createJsonResponse(200, {
-      choices: [{ message: { content: "recovered text" } }],
+      choices: [{ message: { content: "fallback2 success" } }],
     });
-  };
-
-  globalThis.setTimeout = (fn) => {
-    fn();
-    return 0;
   };
 
   try {
     const client = createClient({
-      endpoint: "https://example.test/v1",
-      model: "test-model",
+      endpoint: "https://primary.test/v1",
+      model: "primary-model",
       apiKeyEnv: "TEST_LLM_API_KEY",
-      retries: 2,
+      fallbacks: [
+        { endpoint: "https://fallback1.test/v1", model: "fallback1-model" },
+        { endpoint: "https://fallback2.test/v1", model: "fallback2-model" },
+      ],
     });
 
-    const result = await client.complete({ prompt: "Retry this" });
+    const result = await client.complete({ prompt: "Test" });
 
-    assert.deepEqual(result, { text: "recovered text" });
+    assert.equal(result.text, "fallback2 success");
     assert.equal(attempts, 3);
   } finally {
     globalThis.fetch = previousFetch;
-    globalThis.setTimeout = previousSetTimeout;
     if (previousKey === undefined) {
       delete process.env.TEST_LLM_API_KEY;
     } else {

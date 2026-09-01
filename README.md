@@ -115,13 +115,44 @@ For unauthenticated local endpoints (e.g. Ollama):
 }
 ```
 
+With fallback endpoints (if the primary fails, it tries the next ones):
+
+```json
+{
+  "plugin": [
+    [
+      "@renjfk/opencode-voice",
+      {
+        "endpoint": "https://api.anthropic.com/v1",
+        "model": "claude-haiku-4-5",
+        "apiKeyEnv": "ANTHROPIC_API_KEY",
+        "timeout": 5000,
+        "fallbacks": [
+          {
+            "endpoint": "https://api.openai.com/v1",
+            "model": "gpt-4o-mini",
+            "apiKeyEnv": "OPENAI_API_KEY"
+          },
+          {
+            "endpoint": "https://api.together.xyz/v1",
+            "model": "meta-llama/Llama-3-70b-chat-hf",
+            "apiKeyEnv": "TOGETHER_API_KEY"
+          }
+        ]
+      }
+    ]
+  ]
+}
+```
+
 - `endpoint` _(required)_ - OpenAI-compatible base URL
 - `model` _(required)_ - model name sent to `/chat/completions`
 - `apiKeyEnv` _(optional)_ - environment variable containing the API key
 - `maxTokens` _(optional)_ - maximum completion tokens for normalization calls
 - `reasoningEffort` _(optional)_ - reasoning level for models that support it
 - `chatTemplateKwargs` _(optional)_ - extra keyword arguments passed to the model's chat template (e.g. `{"enable_thinking": false}` for Qwen models to disable chain-of-thought)
-- `retries` _(optional)_ - number of retry attempts for transient LLM failures
+- `timeout` _(optional)_ - timeout in milliseconds per LLM request (default: 5000)
+- `fallbacks` _(optional)_ - array of alternative endpoints to try if the primary fails. Each fallback accepts the same fields as the primary config (`endpoint`, `model`, `apiKeyEnv`, `maxTokens`, `reasoningEffort`, `chatTemplateKwargs`, `temperature`). If all endpoints fail, the raw transcription is used.
 
 ### STT API transcription (optional)
 
