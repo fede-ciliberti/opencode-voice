@@ -165,7 +165,7 @@ export default {
           }
         }
 
-        log("hook_completed", { 
+        log("hook_completed", {
           finalPartsCount: parts.length,
           finalPartsStructure: parts.map((p, i) => ({
             index: i,
