@@ -64,6 +64,24 @@ export default {
           indices: [...referencedIndices],
         });
 
+        if (referencedIndices.size === 0) {
+          log("hook_completed", {
+            sessionID,
+            messageID,
+            finalPartsCount: parts.length,
+            finalPartsStructure: parts.map((p, i) => ({
+              index: i,
+              type: p.type,
+              hasId: !!p.id,
+              textLength: p.text?.length || 0,
+              mime: p.mime || null,
+              filename: p.filename || null,
+            })),
+            earlyExit: true,
+          });
+          return;
+        }
+
         // === FASE 2: Listar archivos de audio de esta sesión en /tmp ===
         const sessionFiles = [];
         try {
