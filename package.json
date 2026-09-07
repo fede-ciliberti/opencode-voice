@@ -20,7 +20,8 @@
   },
   "files": [
     "index.js",
-    "lib"
+    "lib",
+    "server-plugin.js"
   ],
   "type": "module",
   "main": "index.js",
