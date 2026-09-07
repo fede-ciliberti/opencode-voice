@@ -150,6 +150,7 @@ export default {
                 id: generatePartId(),
                 type: "file",
                 mime: "audio/wav",
+                url: `data:audio/wav;base64,${rawBase64}`,
                 data: rawBase64,
                 filename: file,
                 messageID: msgID,
