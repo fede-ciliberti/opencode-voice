@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
@@ -6,12 +7,11 @@ import os from "node:os";
 const LOGS_DIR = path.join(os.homedir(), ".local", "share", "opencode-voice", "logs");
 const LOG_FILE = path.join(LOGS_DIR, "server.log");
 const TMP_DIR = "/tmp";
-const FILE_PATTERN = /^opencode-audio-(.+)-(\d+)\.wav$/;
+const FILE_PATTERN = /^opencode-audio-(.+?)-(\d+)\.wav$/;
 const MAX_AUDIO_BYTES = 15 * 1024 * 1024;
 
-let partIdCounter = 0;
 function generatePartId() {
-  return `part_audio_${Date.now()}_${++partIdCounter}`;
+  return `part_audio_${crypto.randomUUID()}`;
 }
 
 function log(event, data = {}) {
@@ -136,7 +136,17 @@ export default {
                 continue;
               }
               const base64 = fs.readFileSync(filePath).toString("base64");
-              let injected = false;
+              // Extraer solo el base64 puro (sin el prefix "data:audio/wav;base64,")
+              const rawBase64 = base64.includes(",") ? base64.split(",")[1] : base64;
+              const makeFilePart = (msgID) => ({
+                id: generatePartId(),
+                type: "file",
+                mime: "audio/wav",
+                data: rawBase64,
+                filename: file,
+                messageID: msgID,
+              });
+              let injectedCount = 0;
 
               // Buscar la parte de texto que contiene la etiqueta
               for (let i = 0; i < parts.length; i++) {
@@ -145,7 +155,7 @@ export default {
                   // Dividir el texto usando la etiqueta como separador
                   const segments = part.text.split(new RegExp(`\\[audio-${index}\\]`, "g"));
 
-                  // Reconstruir: insertar FilePart entre segmentos
+                  // Reconstruir: insertar un FilePart por CADA ocurrencia del tag
                   const replacement = [];
                   for (let j = 0; j < segments.length; j++) {
                     if (segments[j]) {
@@ -156,40 +166,29 @@ export default {
                         messageID: messageID || part.messageID,
                       });
                     }
-                    if (j < segments.length - 1 && !injected) {
-                      // Extraer solo el base64 puro (sin el prefix "data:audio/wav;base64,")
-                      const rawBase64 = base64.includes(",") ? base64.split(",")[1] : base64;
-                      replacement.push({
-                        id: generatePartId(),
-                        type: "file",
-                        mime: "audio/wav",
-                        data: rawBase64,
-                        filename: file,
-                        messageID: messageID || part.messageID,
-                      });
-                      injected = true;
+                    if (j < segments.length - 1) {
+                      replacement.push(makeFilePart(messageID || part.messageID));
+                      injectedCount++;
                     }
                   }
 
-                  // Reemplazar la parte original con segmentos + audio
+                  // Reemplazar la parte original con segmentos + audios
                   parts.splice(i, 1, ...replacement);
-                  break; // Solo primera ocurrencia en esta parte
+                  break; // Solo primera parte que contiene el tag
                 }
               }
 
-              if (!injected) {
-                const rawBase64 = base64.includes(",") ? base64.split(",")[1] : base64;
-                parts.push({
-                  id: generatePartId(),
-                  type: "file",
-                  mime: "audio/wav",
-                  data: rawBase64,
-                  filename: file,
-                  messageID: messageID || parts[0]?.messageID,
-                });
+              if (injectedCount === 0) {
+                parts.push(makeFilePart(messageID || parts[0]?.messageID));
                 log("audio_injected_at_end_fallback", { sessionID, index });
               } else {
-                log("audio_file_injected", { sessionID, index, sizeBytes: base64.length });
+                log("audio_file_injected", {
+                  sessionID,
+                  index,
+                  sizeBytes,
+                  base64Length: base64.length,
+                  occurrences: injectedCount,
+                });
               }
 
               // Limpiar archivo temporal siempre
