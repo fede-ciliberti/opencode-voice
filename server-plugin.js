@@ -6,7 +6,9 @@ import os from "node:os";
 // Configuración de logging
 const LOGS_DIR = path.join(os.homedir(), ".local", "share", "opencode-voice", "logs");
 const LOG_FILE = path.join(LOGS_DIR, "server.log");
-const TMP_DIR = "/tmp";
+function getTmpDir(options) {
+  return options?.tmpDir || process.env.OPENCODE_VOICE_TMPDIR || "/tmp";
+}
 const FILE_PATTERN = /^opencode-audio-(.+?)-(\d+)\.wav$/;
 const MAX_AUDIO_BYTES = 15 * 1024 * 1024;
 
@@ -26,6 +28,7 @@ export default {
   id: "opencode-voice-server",
   server: async (_input, _options) => {
     log("server_plugin_initialized");
+    const serverOptions = _options;
 
     return {
       "chat.message": async ({ sessionID, messageID }, { _message, parts }) => {
@@ -82,17 +85,18 @@ export default {
           return;
         }
 
-        // === FASE 2: Listar archivos de audio de esta sesión en /tmp ===
+        // === FASE 2: Listar archivos de audio de esta sesión en tmpDir ===
+        const tmpDir = getTmpDir(serverOptions);
         const sessionFiles = [];
         try {
-          const files = fs.readdirSync(TMP_DIR);
+          const files = fs.readdirSync(tmpDir);
           for (const file of files) {
             const match = file.match(FILE_PATTERN);
             if (match && match[1] === sessionID) {
               sessionFiles.push({
                 file,
                 index: parseInt(match[2], 10),
-                filePath: path.join(TMP_DIR, file),
+                filePath: path.join(tmpDir, file),
               });
             }
           }

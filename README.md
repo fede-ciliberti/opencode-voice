@@ -263,6 +263,8 @@ When enabled (`/tts-mode`), the plugin automatically speaks:
 
 F6 records audio and injects it as `audio/wav` directly to the model (no transcription). Audios larger than **15 MB** (~8 min at 16 kHz/16-bit/mono) or empty (≤ 44 bytes) are not injected — the `[audio-N]` tag is preserved in the prompt and the temp file is discarded (check `server.log` for `audio_rejected_too_large` / `audio_rejected_empty`). For long recordings use whisper mode (F5) instead.
 
+Queue files (`opencode-audio-<session>-<N>.wav`) live in `/tmp` by default. To use a custom dir, set `OPENCODE_VOICE_TMPDIR` in the environment of **both** processes (TUI and server) — or `tmpDir` in the server plugin config — so recording and injection see the same directory.
+
 ## Contributing
 
 opencode-voice is open to contributions and ideas!
