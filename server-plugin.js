@@ -6,19 +6,23 @@ import os from "node:os";
 // Configuración de logging
 const LOGS_DIR = path.join(os.homedir(), ".local", "share", "opencode-voice", "logs");
 const LOG_FILE = path.join(LOGS_DIR, "server.log");
-function getTmpDir(options) {
-  return options?.tmpDir || process.env.OPENCODE_VOICE_TMPDIR || "/tmp";
-}
-const FILE_PATTERN = /^opencode-audio-(.+?)-(\d+)\.wav$/;
-const MAX_AUDIO_BYTES = 15 * 1024 * 1024;
 
-function generatePartId() {
+export const FILE_PATTERN = /^opencode-audio-(.+?)-(\d+)\.wav$/;
+export const MAX_AUDIO_BYTES = 15 * 1024 * 1024;
+
+export function generatePartId() {
   return `part_audio_${crypto.randomUUID()}`;
+}
+export function getTmpDir(options) {
+  return options?.tmpDir || process.env.OPENCODE_VOICE_TMPDIR || "/tmp";
 }
 
 function log(event, data = {}) {
   try {
     fs.mkdirSync(LOGS_DIR, { recursive: true });
+    try {
+      if (fs.statSync(LOG_FILE).size > 5 * 1024 * 1024) fs.renameSync(LOG_FILE, LOG_FILE + ".1");
+    } catch {}
     const entry = JSON.stringify({ ts: new Date().toISOString(), event, ...data }) + "\n";
     fs.appendFileSync(LOG_FILE, entry);
   } catch {}
