@@ -181,11 +181,11 @@ test("FILE_PATTERN: 3 casos (normal, con guiones, inválido)", () => {
 
 // ── generatePartId unicidad 3.1 ──
 
-test("generatePartId: 1000 IDs únicos con prefijo part_audio_", () => {
+test("generatePartId: 1000 IDs únicos con prefijo prt_", () => {
   const ids = new Set();
   for (let i = 0; i < 1000; i++) {
     const id = generatePartId();
-    assert.match(id, /^part_audio_/);
+    assert.match(id, /^prt_/);
     assert.equal(ids.has(id), false, `duplicate id ${id}`);
     ids.add(id);
   }
@@ -309,7 +309,7 @@ test("server hook: inyección con tag duplicado usa sizeBytes real y genera 2 Fi
     assert.equal(fileParts.length, 2);
     for (const fp of fileParts) {
       assert.equal(fp.mime, "audio/wav");
-      assert.match(fp.id, /^part_audio_/);
+      assert.match(fp.id, /^prt_/);
       assert.equal(fp.data.length, expectedBase64Len);
     }
     assert.equal(fs.existsSync(queuedFile), false);

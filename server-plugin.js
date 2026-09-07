@@ -11,7 +11,7 @@ export const FILE_PATTERN = /^opencode-audio-(.+?)-(\d+)\.wav$/;
 export const MAX_AUDIO_BYTES = 15 * 1024 * 1024;
 
 export function generatePartId() {
-  return `part_audio_${crypto.randomUUID()}`;
+  return `prt_${crypto.randomUUID().replace(/-/g, "")}`;
 }
 export function getTmpDir(options) {
   return options?.tmpDir || process.env.OPENCODE_VOICE_TMPDIR || "/tmp";
@@ -153,6 +153,7 @@ export default {
                 data: rawBase64,
                 filename: file,
                 messageID: msgID,
+                sessionID,
               });
               let injectedCount = 0;
 
@@ -172,6 +173,7 @@ export default {
                         type: "text",
                         text: segments[j],
                         messageID: messageID || part.messageID,
+                        sessionID,
                       });
                     }
                     if (j < segments.length - 1) {
