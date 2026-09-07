@@ -259,6 +259,10 @@ When enabled (`/tts-mode`), the plugin automatically speaks:
 - Permission requests
 - Questions that need your answer
 
+### Audio passthrough
+
+F6 records audio and injects it as `audio/wav` directly to the model (no transcription). Audios larger than **15 MB** (~8 min at 16 kHz/16-bit/mono) or empty (≤ 44 bytes) are not injected — the `[audio-N]` tag is preserved in the prompt and the temp file is discarded (check `server.log` for `audio_rejected_too_large` / `audio_rejected_empty`). For long recordings use whisper mode (F5) instead.
+
 ## Contributing
 
 opencode-voice is open to contributions and ideas!

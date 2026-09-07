@@ -7,6 +7,7 @@ const LOGS_DIR = path.join(os.homedir(), ".local", "share", "opencode-voice", "l
 const LOG_FILE = path.join(LOGS_DIR, "server.log");
 const TMP_DIR = "/tmp";
 const FILE_PATTERN = /^opencode-audio-(.+)-(\d+)\.wav$/;
+const MAX_AUDIO_BYTES = 15 * 1024 * 1024;
 
 let partIdCounter = 0;
 function generatePartId() {
@@ -92,6 +93,30 @@ export default {
           if (referencedIndices.has(index)) {
             // El usuario referenció este audio → inyectarlo como FilePart
             try {
+              const { size: sizeBytes } = fs.statSync(filePath);
+              if (sizeBytes > MAX_AUDIO_BYTES) {
+                log("audio_rejected_too_large", {
+                  sessionID,
+                  index,
+                  sizeBytes,
+                  maxBytes: MAX_AUDIO_BYTES,
+                });
+                try {
+                  fs.unlinkSync(filePath);
+                } catch (err) {
+                  log("audio_cleanup_error", { sessionID, index, message: err.message });
+                }
+                continue;
+              }
+              if (sizeBytes <= 44) {
+                log("audio_rejected_empty", { sessionID, index, sizeBytes });
+                try {
+                  fs.unlinkSync(filePath);
+                } catch (err) {
+                  log("audio_cleanup_error", { sessionID, index, message: err.message });
+                }
+                continue;
+              }
               const base64 = fs.readFileSync(filePath).toString("base64");
               let injected = false;
 
