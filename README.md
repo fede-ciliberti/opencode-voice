@@ -33,6 +33,32 @@ You must configure at least `endpoint` and `model`:
 }
 ```
 
+### Server entrypoint (audio passthrough)
+
+The package exposes two entrypoints that OpenCode loads in different processes:
+
+- `./tui` (the package `main`, `index.js`) — the TUI commands and options. Register it in `tui.json`.
+- `./server` (`server-plugin.js`) — the `chat.message` hook that injects recorded audio into the prompt. Register it in `opencode.json`.
+
+STT (F5) and TTS work with `tui.json` alone. **Audio passthrough (F6) needs both**: the TUI records the audio and leaves an `[audio-N]` tag in the prompt, but only the server entrypoint replaces that tag with the real `audio/wav` part. Without it, the tag stays as literal text and the model never receives the audio.
+
+OpenCode resolves the right entrypoint from the package, so registering the package name (or the local repo path) is enough:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["@renjfk/opencode-voice"]
+}
+```
+
+For a local checkout, point at the repo path instead:
+
+```json
+{
+  "plugin": ["/Users/your-user/opencode-voice"]
+}
+```
+
 ## Prerequisites
 
 ### Speech-to-text
@@ -264,6 +290,8 @@ When enabled (`/tts-mode`), the plugin automatically speaks:
 F6 records audio and injects it as `audio/wav` directly to the model (no transcription). Audios larger than **15 MB** (~8 min at 16 kHz/16-bit/mono) or empty (≤ 44 bytes) are not injected — the `[audio-N]` tag is preserved in the prompt and the temp file is discarded (check `server.log` for `audio_rejected_too_large` / `audio_rejected_empty`). For long recordings use whisper mode (F5) instead.
 
 Queue files (`opencode-audio-<session>-<N>.wav`) live in `/tmp` by default. To use a custom dir, set `OPENCODE_VOICE_TMPDIR` in the environment of **both** processes (TUI and server) — or `tmpDir` in the server plugin config — so recording and injection see the same directory.
+
+Injection runs in the server entrypoint, so it must be registered in `opencode.json` (see [Server entrypoint](#server-entrypoint-audio-passthrough)).
 
 ## Contributing
 

@@ -55,6 +55,7 @@ function loadPromptFile(filePath) {
 
 export default {
   id: "opencode-voice",
+  // V1: OpenCode llama `tui(api, options)`. El entrypoint V2 vive en ./tui (v2/cli.js).
   tui: async (api, options) => {
     const { kv } = api;
     const { complete } = createClient(options);

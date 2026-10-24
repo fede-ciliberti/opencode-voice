@@ -1,6 +1,6 @@
 {
   "name": "@renjfk/opencode-voice",
-  "version": "0.1.0",
+  "version": "0.7.0",
   "description": "Speech-to-text and text-to-speech for OpenCode. Record voice prompts with whisper-cpp, hear responses via Piper TTS, with LLM normalization through any OpenAI-compatible endpoint.",
   "keywords": [
     "opencode",
@@ -21,6 +21,7 @@
   "files": [
     "index.js",
     "lib",
+    "v2",
     "server-plugin.js"
   ],
   "type": "module",
@@ -30,7 +31,7 @@
       "import": "./index.js"
     },
     "./tui": {
-      "import": "./index.js"
+      "import": "./v2/cli.js"
     },
     "./server": {
       "import": "./server-plugin.js"
