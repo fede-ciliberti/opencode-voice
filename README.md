@@ -14,8 +14,9 @@ code-heavy responses, etc.).
 
 ## Install
 
-Add to your `tui.json` (create at `~/.config/opencode/tui.json` if it doesn't
-exist). You must configure at least `endpoint` and `model`:
+Add to `~/.config/opencode/cli.json` (create it if it doesn't exist; this is a
+TUI-only plugin, so the server-side `opencode.json` cannot load it). You must
+configure at least `endpoint` and `model`:
 
 > [!NOTE]
 > **Clobbering default keybinds.** This plugin uses `ctrl+r` for voice
@@ -26,19 +27,19 @@ exist). You must configure at least `endpoint` and `model`:
 
 ```json
 {
-  "$schema": "https://opencode.ai/tui.json",
+  "$schema": "https://opencode.ai/v2/cli.json",
   "keybinds": {
     "session_rename": "none"
   },
-  "plugin": [
-    [
-      "@renjfk/opencode-voice",
-      {
+  "plugins": [
+    {
+      "package": "@renjfk/opencode-voice",
+      "options": {
         "endpoint": "https://api.anthropic.com/v1",
         "model": "claude-haiku-4-5",
         "apiKeyEnv": "ANTHROPIC_API_KEY"
       }
-    ]
+    }
   ]
 }
 ```
@@ -233,21 +234,21 @@ speech-to-text it cleans up whisper output (punctuation, filler words, software
 engineering homophones). For text-to-speech it converts markdown into natural
 spoken text.
 
-Configure your endpoint in `tui.json` via plugin options. Any OpenAI-compatible
+Configure your endpoint via plugin options. Any OpenAI-compatible
 endpoint works (Anthropic, OpenAI, Ollama, vLLM, LM Studio, etc.). The `apiKeyEnv`
 option is optional - omit it for unauthenticated endpoints like Ollama.
 
 ```json
 {
-  "plugin": [
-    [
-      "@renjfk/opencode-voice",
-      {
+  "plugins": [
+    {
+      "package": "@renjfk/opencode-voice",
+      "options": {
         "endpoint": "https://api.anthropic.com/v1",
         "model": "claude-haiku-4-5",
         "apiKeyEnv": "ANTHROPIC_API_KEY"
       }
-    ]
+    }
   ]
 }
 ```
@@ -256,14 +257,14 @@ For unauthenticated local endpoints (e.g. Ollama):
 
 ```json
 {
-  "plugin": [
-    [
-      "@renjfk/opencode-voice",
-      {
+  "plugins": [
+    {
+      "package": "@renjfk/opencode-voice",
+      "options": {
         "endpoint": "http://localhost:11434/v1",
         "model": "llama3.2"
       }
-    ]
+    }
   ]
 }
 ```
@@ -281,10 +282,11 @@ For unauthenticated local endpoints (e.g. Ollama):
 
 ### Logging
 
-The plugin writes diagnostics through OpenCode's structured app logger. If this plugin is not working with your setup, check the OpenCode log file and, optionally, enable debug mode. See the [OpenCode Docs](https://opencode.ai/docs/troubleshooting/#logs) for details.
-
-Routine plugin diagnostics use `debug`; recoverable issues use `warn`; failed
-child processes, API calls, or unexpected exceptions use `error`.
+V2 removed the app-log sink V1 used, so diagnostics stay in the process unless
+debugging is enabled: set `OPENCODE_VOICE_DEBUG=1` and the plugin appends to
+`~/.local/state/opencode-voice/debug.log`. Routine plugin diagnostics use
+`debug`; recoverable issues use `warn`; failed child processes, API calls, or
+unexpected exceptions use `error`.
 
 ### STT API transcription (optional)
 
@@ -294,15 +296,15 @@ plugin on a machine without whisper-cpp installed.
 
 ```json
 {
-  "plugin": [
-    [
-      "@renjfk/opencode-voice",
-      {
+  "plugins": [
+    {
+      "package": "@renjfk/opencode-voice",
+      "options": {
         "sttEndpoint": "http://127.0.0.1:8000/v1",
         "sttModel": "whisper-large-v3-turbo",
         "sttApiKeyEnv": "MY_STT_API_KEY"
       }
-    ]
+    }
   ]
 }
 ```
@@ -321,15 +323,15 @@ up or how responses are spoken.
 
 ```json
 {
-  "plugin": [
-    [
-      "@renjfk/opencode-voice",
-      {
+  "plugins": [
+    {
+      "package": "@renjfk/opencode-voice",
+      "options": {
         "sttPrompt": "~/.config/opencode/stt-prompt.md",
         "ttsAutoPrompt": "~/.config/opencode/tts-auto-prompt.md",
         "ttsManualPrompt": "~/.config/opencode/tts-manual-prompt.md"
       }
-    ]
+    }
   ]
 }
 ```
@@ -384,10 +386,10 @@ then `s`.
 3. LLM normalizes the transcription: fixes punctuation, removes filler words,
    corrects software engineering homophones ("Jason" to "JSON", "bullion" to
    "boolean", etc.)
-4. Cleaned text is appended to the OpenCode prompt, or submitted immediately
-   when `/stt-submit` is used. If normalization fails (e.g. LLM endpoint
-   unreachable), the raw transcription is used as a fallback so you never lose
-   your input
+4. Cleaned text opens an editable review dialog prefilled with the transcript
+   (Enter sends it, Esc cancels), or is sent directly when `/stt-submit` is
+   used. If normalization fails (e.g. LLM endpoint unreachable), the raw
+   transcription is used as a fallback so you never lose your input
 
 ### TTS pipeline
 
@@ -401,7 +403,7 @@ then `s`.
 
 When enabled (`/tts-mode`), the plugin automatically speaks:
 
-- Assistant responses when a session goes idle after work
+- Assistant responses when the session's turn finishes (succeeds or is interrupted)
 - Permission requests
 - Questions that need your answer
 
@@ -431,13 +433,12 @@ npm run fmt:fix      # oxfmt --write
 
 ### Test local plugin in OpenCode
 
-To test unpublished changes in the OpenCode TUI, point `~/.config/opencode/tui.json`
-at the local repo path, not the npm package name:
+To test unpublished changes in the OpenCode TUI, point the config at the local
+repo path, not the npm package name:
 
 ```json
 {
-  "$schema": "https://opencode.ai/tui.json",
-  "plugin": ["/Users/your-user/opencode-voice"]
+  "plugins": [{ "package": "/Users/your-user/opencode-voice" }]
 }
 ```
 

@@ -25,9 +25,6 @@
   "type": "module",
   "main": "index.js",
   "exports": {
-    ".": {
-      "import": "./index.js"
-    },
     "./tui": {
       "import": "./index.js"
     }
@@ -41,7 +38,9 @@
     "prepack": "npm run check"
   },
   "devDependencies": {
+    "@opencode/plugin": "^2.2.1",
     "oxfmt": "0.50.0",
-    "oxlint": "1.65.0"
+    "oxlint": "1.65.0",
+    "solid-js": "^1.9.0"
   }
 }
