@@ -16,6 +16,9 @@ Single TUI plugin exported from `index.js` with logic split into `lib/`.
   `createNormalizer` in `lib/normalize.js`; `normalizeModel` /
   `normalizeEndpoint` / `normalizeApiKeyEnv` can point it at a different model
   than the one answering, and `normalize: false` disables the pass entirely.
+- Command keybinds come from `resolveKeybinds()` in `lib/keybinds.js` (the
+  `keybinds` plugin option). V2 keymaps read the binding from the command
+  definition, so they cannot be remapped from `cli.json`.
 - Configuration uses `options` (static) and the storage-backed `api.kv`
   (runtime). No dotfile I/O.
 - Auto TTS triggers on `session.execution.started` / `succeeded` /
