@@ -41,6 +41,9 @@ import { Plugin } from "@opencode/plugin/tui";
 import { registerSTT } from "./lib/stt.js";
 import { registerTTS } from "./lib/tts.js";
 import { createNormalizer } from "./lib/normalize.js";
+import { BUILD_FEATURES } from "./lib/build.js";
+
+export { BUILD_FEATURES };
 import { createLogger } from "./lib/logger.js";
 
 function loadPromptFile(filePath, logger, name) {
@@ -174,11 +177,38 @@ export function findInsertable(node, depth = 0) {
 // renderable. Returns false when nothing editable is focused (a dialog is open,
 // focus sits in a list, no renderer) so the caller falls back to the dialog.
 export function insertAtCursor(renderer, text) {
-  const focused = renderer?.currentFocusedRenderable ?? null;
-  const target = findInsertable(focused);
+  if (!renderer) return false;
+  const focused = renderer.currentFocusedRenderable ?? null;
+  // Prefer the focused widget, then fall back to the whole tree: the composer
+  // is the only text buffer in the TUI, so if nothing editable is focused it is
+  // still the right target.
+  const target = findInsertable(focused) ?? findInsertable(renderer.root);
   if (!target) return false;
   target.insertText(text);
+  // Inserting only mutates the buffer; the TUI needs the same follow-ups it
+  // runs after a tui.prompt.append event, or the text stays invisible until the
+  // next keystroke.
+  try {
+    target.invalidateIntrinsicSize?.();
+    target.gotoBufferEnd?.();
+  } catch {}
+  try {
+    renderer.requestRender?.();
+  } catch {}
   return true;
+}
+
+function describeRenderable(node) {
+  if (!node) return "none";
+  return node.constructor?.name || typeof node;
+}
+
+function collectInsertables(node, out, depth = 0) {
+  if (!node || depth > 8 || out.length > 20) return out;
+  if (typeof node.insertText === "function") out.push(node);
+  const children = typeof node.getChildren === "function" ? node.getChildren() : [];
+  for (const child of children) collectInsertables(child, out, depth + 1);
+  return out;
 }
 
 // The V1-era api surface the command modules are written against, adapted to
@@ -220,6 +250,19 @@ export function createApi(context, kv) {
       return active?.title || "";
     },
     session: {
+      // Diagnostics for /stt-doctor: what the renderer exposes right now.
+      cursorInfo() {
+        const renderer = context.renderer;
+        const focused = renderer?.currentFocusedRenderable ?? null;
+        const inTree = collectInsertables(renderer?.root, []);
+        return {
+          hasRenderer: Boolean(renderer),
+          focused: describeRenderable(focused),
+          focusedInsertable: Boolean(findInsertable(focused)),
+          treeInsertables: inTree.length,
+          treeNames: inTree.slice(0, 3).map(describeRenderable),
+        };
+      },
       // How the transcript reaches the user, in order of preference:
       //   insert - write it at the cursor in the composer (default, the V1
       //            behaviour); falls back to the dialog when the composer is
