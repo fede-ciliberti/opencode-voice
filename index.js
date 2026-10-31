@@ -154,6 +154,33 @@ function createEvent(context) {
   };
 }
 
+// Recursively find the first renderable that accepts text at the cursor.
+// Exported for tests.
+export function findInsertable(node, depth = 0) {
+  if (!node || depth > 8) return null;
+  if (typeof node.insertText === "function") return node;
+  const children = typeof node.getChildren === "function" ? node.getChildren() : [];
+  for (const child of children) {
+    const found = findInsertable(child, depth + 1);
+    if (found) return found;
+  }
+  return null;
+}
+
+// V2 removed the `client.tui.appendPrompt` producer that V1 used to drop text
+// into the composer, so the transcription cannot be appended through the public
+// API. The TUI itself still handles `tui.prompt.append` by calling
+// `insertText()` on the composer renderable; we do the same from the focused
+// renderable. Returns false when nothing editable is focused (a dialog is open,
+// focus sits in a list, no renderer) so the caller falls back to the dialog.
+export function insertAtCursor(renderer, text) {
+  const focused = renderer?.currentFocusedRenderable ?? null;
+  const target = findInsertable(focused);
+  if (!target) return false;
+  target.insertText(text);
+  return true;
+}
+
 // The V1-era api surface the command modules are written against, adapted to
 // the V2 plugin context. Exported for tests.
 export function createApi(context, kv) {
@@ -193,12 +220,12 @@ export function createApi(context, kv) {
       return active?.title || "";
     },
     session: {
-      // V2 2.2 has no API to write the composer text (the V1
-      // `client.tui.appendPrompt` producer was removed; the `tui.prompt.append`
-      // event it used has a consumer but no producer). Voice input therefore
-      // either sends directly (/stt-submit) or opens an editable review dialog
-      // prefilled with the transcript (/stt-record): the user reviews/edits
-      // and Enter sends it to the session.
+      // How the transcript reaches the user, in order of preference:
+      //   insert - write it at the cursor in the composer (default, the V1
+      //            behaviour); falls back to the dialog when the composer is
+      //            not focused
+      //   dialog - editable review dialog; Enter sends
+      //   submit - send straight away (/stt-submit)
       async deliverTranscription(text, submit = false) {
         const route = context.ui.router.current();
         if (route.type !== "session") {
@@ -214,7 +241,12 @@ export function createApi(context, kv) {
           return;
         }
         let finalText = draft;
-        if (!submit) {
+        const mode = submit ? "submit" : (context.options?.sttDeliver ?? "insert");
+        if (mode === "insert" && insertAtCursor(context.renderer, draft)) {
+          context.ui.toast.show({ message: "Voice prompt inserted", variant: "success" });
+          return;
+        }
+        if (mode !== "submit") {
           const edited = await context.ui.dialog.prompt({
             title: "Voice prompt",
             description: "Review and edit, then Enter to send (Esc to cancel)",

@@ -19,6 +19,10 @@ Single TUI plugin exported from `index.js` with logic split into `lib/`.
 - Command keybinds come from `resolveKeybinds()` in `lib/keybinds.js` (the
   `keybinds` plugin option). V2 keymaps read the binding from the command
   definition, so they cannot be remapped from `cli.json`.
+- Transcriptions reach the composer through `insertAtCursor()` in `index.js`:
+  V2 removed the V1 `client.tui.appendPrompt` producer, so the plugin inserts
+  into `renderer.currentFocusedRenderable` instead and falls back to the review
+  dialog when nothing editable is focused (`sttDeliver` option).
 - Configuration uses `options` (static) and the storage-backed `api.kv`
   (runtime). No dotfile I/O.
 - Auto TTS triggers on `session.execution.started` / `succeeded` /

@@ -307,6 +307,7 @@ the same `normalize*` settings:
 - `tmpDir` _(optional)_ - directory used for the temporary STT recording file (default `/tmp`)
 - `sttLanguage` _(optional)_ - spoken language passed to local `whisper-cli -l` and to the STT API as `language` (default `auto`; any whisper.cpp language code, e.g. `en`, `es`, `zh`). Can be changed at runtime via `/stt-language`
 - `trimSilence` _(optional)_ - whether to remove leading silence from recordings (default `true`). Set to `false` if your recordings are missing the first word or syllable
+- `sttDeliver` _(optional)_ - where a transcription goes: `insert` writes it at the cursor in the composer (default, falls back to the review dialog when the composer is not focused), `dialog` always opens the editable review dialog, `submit` sends it straight away
 
 ### Logging
 
@@ -391,6 +392,11 @@ If a path is not set, the built-in default prompt is used.
 `/stt-mic` lists CoreAudio input devices on macOS, and PulseAudio sources on
 Linux (via `pactl`, monitor sources excluded). On systems without a supported
 device listing, "System default" uses sox's default device (`sox -d`).
+
+A finished dictation is written at the cursor in the composer so you can keep
+typing or edit it before pressing Enter. When nothing editable is focused the
+plugin falls back to an editable review dialog. See the `sttDeliver` option to
+change this.
 
 `/stt-language` offers a curated list of common languages (plus auto-detect)
 and applies to both local `whisper-cli` transcription and the STT API (sent as
