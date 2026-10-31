@@ -58,9 +58,13 @@ rm -rf ~/.cache/opencode/packages/@renjfk/
 ### Speech-to-text
 
 The plugin uses [whisper.cpp](https://github.com/ggml-org/whisper.cpp) via a
-`whisper-cli` binary and `sox` for microphone capture. Follow the subsection
-for your OS to install the binary and verify your microphone, then run the
-shared **Download model & smoke test** step at the end.
+`whisper-cli` binary and `sox` for microphone capture. On Linux the capture
+itself goes through `parec` (from `pulseaudio-utils`, always present on
+PipeWire/PulseAudio systems) piped into `sox`, because Debian and Ubuntu ship
+`sox` without the pulseaudio format handler unless `libsox-fmt-pulse` is
+installed. Follow the subsection for your OS to install the binary and verify
+your microphone, then run the shared **Download model & smoke test** step at the
+end.
 
 #### macOS
 
@@ -269,6 +273,26 @@ For unauthenticated local endpoints (e.g. Ollama):
 }
 ```
 
+To normalize with a smaller model than the one answering — both normalization
+stages (STT cleanup and TTS markdown conversion) share this client, so they use
+the same `normalize*` settings:
+
+```json
+{
+  "plugins": [
+    {
+      "package": "@renjfk/opencode-voice",
+      "options": {
+        "endpoint": "https://api.anthropic.com/v1",
+        "model": "claude-sonnet-4-6",
+        "apiKeyEnv": "ANTHROPIC_API_KEY",
+        "normalizeModel": "claude-haiku-4-5"
+      }
+    }
+  ]
+}
+```
+
 - `endpoint` _(required)_ - OpenAI-compatible base URL
 - `model` _(required)_ - model name sent to `/chat/completions`
 - `apiKeyEnv` _(optional)_ - environment variable containing the API key
@@ -276,9 +300,14 @@ For unauthenticated local endpoints (e.g. Ollama):
 - `reasoningEffort` _(optional)_ - reasoning level for models that support it
 - `chatTemplateKwargs` _(optional)_ - extra keyword arguments passed to the model's chat template (e.g. `{"enable_thinking": false}` for Qwen models to disable chain-of-thought)
 - `retries` _(optional)_ - number of retry attempts for transient LLM failures
+- `normalize` _(optional)_ - set to `false` to skip the normalization pass and use the raw transcription (STT) or the unprocessed response (TTS) instead (default `true`)
+- `normalizeModel` _(optional)_ - model used for normalization calls (default: `model`), so a small/cheap model can normalize while a larger one answers
+- `normalizeEndpoint` _(optional)_ - OpenAI-compatible base URL used for normalization calls (default: `endpoint`)
+- `normalizeApiKeyEnv` _(optional)_ - environment variable holding the API key for `normalizeEndpoint` (default: `apiKeyEnv`)
 - `tmpDir` _(optional)_ - directory used for the temporary STT recording file (default `/tmp`)
-- `sttLanguage` _(optional)_ - spoken language passed to local `whisper-cli -l` (default `auto`; any whisper.cpp language code, e.g. `en`, `zh`). Can be changed at runtime via `/stt-language`
+- `sttLanguage` _(optional)_ - spoken language passed to local `whisper-cli -l` and to the STT API as `language` (default `auto`; any whisper.cpp language code, e.g. `en`, `es`, `zh`). Can be changed at runtime via `/stt-language`
 - `trimSilence` _(optional)_ - whether to remove leading silence from recordings (default `true`). Set to `false` if your recordings are missing the first word or syllable
+- `sttDeliver` _(optional)_ - where a transcription goes: `insert` writes it at the cursor in the composer (default, falls back to the review dialog when the composer is not focused), `dialog` always opens the editable review dialog, `submit` sends it straight away
 
 ### Logging
 
@@ -312,6 +341,11 @@ plugin on a machine without whisper-cpp installed.
 - `sttEndpoint` _(optional)_ - OpenAI-compatible base URL with `/audio/transcriptions` support
 - `sttModel` _(optional)_ - whisper model name to pass to the API (default: `whisper-large-v3-turbo`). Can be changed at runtime via `/stt-model`, which fetches available whisper models from the endpoint's `/models` listing
 - `sttApiKeyEnv` _(optional)_ - environment variable containing the API key
+
+When transcribing through the API, the session title is sent as the `prompt`
+field so the model biases towards the vocabulary of what you are working on. If
+the endpoint rejects the prompt (HTTP 400) the request is retried once without
+it instead of losing the transcription.
 
 OpenRouter note: when `sttEndpoint` points at `https://openrouter.ai/api/v1`, the plugin automatically uses OpenRouter's JSON/base64 transcription request format instead of multipart upload.
 
@@ -359,9 +393,15 @@ If a path is not set, the built-in default prompt is used.
 Linux (via `pactl`, monitor sources excluded). On systems without a supported
 device listing, "System default" uses sox's default device (`sox -d`).
 
+A finished dictation is written at the cursor in the composer so you can keep
+typing or edit it before pressing Enter. When nothing editable is focused the
+plugin falls back to an editable review dialog. See the `sttDeliver` option to
+change this.
+
 `/stt-language` offers a curated list of common languages (plus auto-detect)
-and only affects local `whisper-cli` transcription, not the STT API. Languages
-outside the list can be set via the `sttLanguage` plugin option.
+and applies to both local `whisper-cli` transcription and the STT API (sent as
+the `language` field; `auto` omits it). Languages outside the list can be set
+via the `sttLanguage` plugin option.
 
 ### Text-to-speech
 
@@ -374,6 +414,38 @@ then `s`.
 | `/tts-mode`  | `leader+v` | Toggle auto TTS on/off   |
 | `/tts-stop`  | `escape`   | Stop playback            |
 | `/tts-voice` |            | Select TTS voice         |
+
+### Custom keybinds
+
+V2 keymaps take the binding from the command definition, so plugin commands
+cannot be remapped from `cli.json`. Set them through the `keybinds` plugin
+option instead; keys you omit keep their default.
+
+```json
+{
+  "plugins": [
+    {
+      "package": "@renjfk/opencode-voice",
+      "options": {
+        "keybinds": { "record": "f5", "mic": "<leader>i", "voice": "<leader>o" }
+      }
+    }
+  ]
+}
+```
+
+| Key               | Default    | Command       |
+| ----------------- | ---------- | ------------- |
+| `record`          | `ctrl+r`   | `/stt-record` |
+| `submit`          | `leader+r` | `/stt-submit` |
+| `cancelRecording` | —          | `/stt-stop`   |
+| `mic`             | —          | `/stt-mic`    |
+| `speak`           | `leader+s` | `/tts-speak`  |
+| `toggleTts`       | `leader+v` | `/tts-mode`   |
+| `stopPlayback`    | `escape`   | `/tts-stop`   |
+| `voice`           | —          | `/tts-voice`  |
+
+Use an empty string or `"none"` to disable a binding.
 
 ## How it works
 
