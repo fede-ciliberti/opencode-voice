@@ -3,7 +3,9 @@ import test from "node:test";
 
 import {
   buildAudioHint,
+  buildMultipartTranscriptionRequest,
   buildOpenRouterTranscriptionRequest,
+  buildSttContextPrompt,
   buildRecordArgs,
   buildWhisperArgs,
   isOpenRouterEndpoint,
@@ -131,4 +133,31 @@ test("builds whisper-cli args with language", () => {
     "-np",
     "-nt",
   ]);
+});
+
+test("multipart STT request includes language and prompt when provided", () => {
+  const audio = Buffer.alloc(64, 1);
+  const { body } = buildMultipartTranscriptionRequest("whisper-large-v3-turbo", audio, "k", {
+    language: "es",
+    prompt: "OpenCode session: audio summary",
+  });
+  assert.equal(body.get("model"), "whisper-large-v3-turbo");
+  assert.equal(body.get("language"), "es");
+  assert.equal(body.get("prompt"), "OpenCode session: audio summary");
+});
+
+test("multipart STT request omits language and prompt by default", () => {
+  const { body } = buildMultipartTranscriptionRequest(
+    "whisper-large-v3-turbo",
+    Buffer.alloc(64, 1),
+  );
+  assert.equal(body.get("language"), null);
+  assert.equal(body.get("prompt"), null);
+});
+
+test("STT context prompt is built from the session title and bounded", () => {
+  assert.equal(buildSttContextPrompt(""), undefined);
+  assert.equal(buildSttContextPrompt("   "), undefined);
+  assert.equal(buildSttContextPrompt("open code voice"), "OpenCode session: open code voice");
+  assert.equal(buildSttContextPrompt("x".repeat(2000)).length, 750);
 });

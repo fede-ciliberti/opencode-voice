@@ -301,7 +301,7 @@ the same `normalize*` settings:
 - `normalizeEndpoint` _(optional)_ - OpenAI-compatible base URL used for normalization calls (default: `endpoint`)
 - `normalizeApiKeyEnv` _(optional)_ - environment variable holding the API key for `normalizeEndpoint` (default: `apiKeyEnv`)
 - `tmpDir` _(optional)_ - directory used for the temporary STT recording file (default `/tmp`)
-- `sttLanguage` _(optional)_ - spoken language passed to local `whisper-cli -l` (default `auto`; any whisper.cpp language code, e.g. `en`, `zh`). Can be changed at runtime via `/stt-language`
+- `sttLanguage` _(optional)_ - spoken language passed to local `whisper-cli -l` and to the STT API as `language` (default `auto`; any whisper.cpp language code, e.g. `en`, `es`, `zh`). Can be changed at runtime via `/stt-language`
 - `trimSilence` _(optional)_ - whether to remove leading silence from recordings (default `true`). Set to `false` if your recordings are missing the first word or syllable
 
 ### Logging
@@ -336,6 +336,11 @@ plugin on a machine without whisper-cpp installed.
 - `sttEndpoint` _(optional)_ - OpenAI-compatible base URL with `/audio/transcriptions` support
 - `sttModel` _(optional)_ - whisper model name to pass to the API (default: `whisper-large-v3-turbo`). Can be changed at runtime via `/stt-model`, which fetches available whisper models from the endpoint's `/models` listing
 - `sttApiKeyEnv` _(optional)_ - environment variable containing the API key
+
+When transcribing through the API, the session title is sent as the `prompt`
+field so the model biases towards the vocabulary of what you are working on. If
+the endpoint rejects the prompt (HTTP 400) the request is retried once without
+it instead of losing the transcription.
 
 OpenRouter note: when `sttEndpoint` points at `https://openrouter.ai/api/v1`, the plugin automatically uses OpenRouter's JSON/base64 transcription request format instead of multipart upload.
 
@@ -384,8 +389,9 @@ Linux (via `pactl`, monitor sources excluded). On systems without a supported
 device listing, "System default" uses sox's default device (`sox -d`).
 
 `/stt-language` offers a curated list of common languages (plus auto-detect)
-and only affects local `whisper-cli` transcription, not the STT API. Languages
-outside the list can be set via the `sttLanguage` plugin option.
+and applies to both local `whisper-cli` transcription and the STT API (sent as
+the `language` field; `auto` omits it). Languages outside the list can be set
+via the `sttLanguage` plugin option.
 
 ### Text-to-speech
 
